@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Check, X, ChevronDown, MoreHorizontal } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Check, 
+  X, 
+  ChevronDown, 
+  MoreHorizontal,
+  Filter
+} from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { Project } from '../../types';
@@ -13,6 +23,8 @@ const AdminProjectsPage = () => {
   const [sortField, setSortField] = useState<keyof Project>('title');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   
   // Form state for add/edit
   const [formData, setFormData] = useState<Omit<Project, 'id'>>({
@@ -27,24 +39,23 @@ const AdminProjectsPage = () => {
     featured: false,
     updated_at: new Date().toISOString()
   });
+
+  const categories = ['All', 'IoT', 'Blockchain', 'Web'];
   
-  // Handle sorting
-  const handleSort = (field: keyof Project) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-  
-  // Filter and sort projects
+  // Filter projects based on category and search term
   const filteredProjects = projects
-    .filter(project => 
-      project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.category.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(project => {
+      const matchesSearch = 
+        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = 
+        !selectedCategory || 
+        selectedCategory === 'All' || 
+        project.category === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    })
     .sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
@@ -69,7 +80,23 @@ const AdminProjectsPage = () => {
       
       return 0;
     });
-  
+
+  // Handle category selection
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category === 'All' ? null : category);
+    setIsCategoryDropdownOpen(false);
+  };
+
+  // Handle sorting
+  const handleSort = (field: keyof Project) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   // Reset and open add modal
   const openAddModal = () => {
     setFormData({
@@ -86,7 +113,7 @@ const AdminProjectsPage = () => {
     });
     setIsAddModalOpen(true);
   };
-  
+
   // Open edit modal with project data
   const openEditModal = (project: Project) => {
     setCurrentProject(project);
@@ -98,19 +125,19 @@ const AdminProjectsPage = () => {
       image: project.image,
       imageUpload: project.imageUpload,
       features: [...project.features],
-      technical_details: project.technicalDetails || '',
+      technical_details: project.technical_details || '',
       featured: project.featured || false,
       updated_at: new Date().toISOString()
     });
     setIsEditModalOpen(true);
   };
-  
+
   // Open delete confirmation modal
   const openDeleteModal = (project: Project) => {
     setCurrentProject(project);
     setIsDeleteModalOpen(true);
   };
-  
+
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -136,7 +163,7 @@ const AdminProjectsPage = () => {
       });
     }
   };
-  
+
   // Handle feature list changes
   const handleFeatureChange = (index: number, value: string) => {
     const updatedFeatures = [...formData.features];
@@ -146,7 +173,7 @@ const AdminProjectsPage = () => {
       features: updatedFeatures
     });
   };
-  
+
   // Add new feature input
   const addFeature = () => {
     setFormData({
@@ -154,7 +181,7 @@ const AdminProjectsPage = () => {
       features: [...formData.features, '']
     });
   };
-  
+
   // Remove feature input
   const removeFeature = (index: number) => {
     const updatedFeatures = [...formData.features];
@@ -164,7 +191,7 @@ const AdminProjectsPage = () => {
       features: updatedFeatures
     });
   };
-  
+
   // Handle form submission for new project
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +207,7 @@ const AdminProjectsPage = () => {
     
     setIsAddModalOpen(false);
   };
-  
+
   // Handle form submission for edit project
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,7 +225,7 @@ const AdminProjectsPage = () => {
     
     setIsEditModalOpen(false);
   };
-  
+
   // Handle project deletion
   const handleDeleteConfirm = () => {
     if (!currentProject) return;
@@ -240,13 +267,35 @@ const AdminProjectsPage = () => {
               />
             </div>
             
-            <div className="sm:w-48">
+            <div className="sm:w-48 relative">
               <button
+                onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
                 className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
               >
-                <span>Filter by category</span>
+                <div className="flex items-center">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <span>{selectedCategory || 'All Categories'}</span>
+                </div>
                 <ChevronDown className="h-4 w-4" />
               </button>
+
+              {isCategoryDropdownOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => handleCategorySelect(category)}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                        (category === 'All' && !selectedCategory) || category === selectedCategory
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                          : 'text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -387,14 +436,14 @@ const AdminProjectsPage = () => {
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                             <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
-                              <a 
-                                href={`/projects/${project.id}`} 
-                                target="_blank" 
+                              <Link 
+                                to={`/projects/${project.id}`}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
                               >
                                 View Project
-                              </a>
+                              </Link>
                               <button 
                                 onClick={() => updateProject(project.id, { featured: !project.featured })}
                                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
@@ -570,8 +619,8 @@ const AdminProjectsPage = () => {
                   </label>
                   <textarea
                     id="project-technical-details"
-                    name="technicalDetails"
-                    value={formData.technicalDetails}
+                    name="technical_details"
+                    value={formData.technical_details}
                     onChange={handleInputChange}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
@@ -770,8 +819,8 @@ const AdminProjectsPage = () => {
                   </label>
                   <textarea
                     id="edit-project-technical-details"
-                    name="technicalDetails"
-                    value={formData.technicalDetails}
+                    name="technical_details"
+                    value={formData.technical_details}
                     onChange={handleInputChange}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
